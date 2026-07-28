@@ -1,13 +1,5 @@
 # 🎓 AI-Based Chatbot for Student Services
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-success?style=for-the-badge)](https://es1307-ai-based-chatbot-for-student-services-app-u8xe19.streamlit.app/)
-
-![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)
-
-![Streamlit](https://img.shields.io/badge/Streamlit-App-red?style=for-the-badge&logo=streamlit)
-
-![Qwen](https://img.shields.io/badge/LLM-Qwen-purple?style=for-the-badge)
-
-![RAG](https://img.shields.io/badge/RAG-Enabled-green?style=for-the-badge)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-success?style=for-the-badge)](https://es1307-ai-based-chatbot-for-student-services-app-u8xe19.streamlit.app/) ![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python) ![Streamlit](https://img.shields.io/badge/Streamlit-App-red?style=for-the-badge&logo=streamlit) ![Qwen](https://img.shields.io/badge/LLM-Qwen-purple?style=for-the-badge) ![RAG](https://img.shields.io/badge/RAG-Enabled-green?style=for-the-badge)
 
 > **IBM Project-Based Experiential Learning (PBEL) 2026**
 
