@@ -1,6 +1,6 @@
 # 🎓 CampusGuide — AI-Based Chatbot for Student Services
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-success?style=for-the-badge)](https://es1307-ai-based-chatbot-for-student-services-app-u8xe19.streamlit.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-success?style=for-the-badge)](https://es1307-ai-based-chatbot-for-student-services-app-s4xslw.streamlit.app/)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Community%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 ![RAG](https://img.shields.io/badge/RAG-Source--grounded-2E8B57?style=for-the-badge)
@@ -63,7 +63,7 @@ Student question ─► query embedding + IDF-aware ranking
 
 | Area | Technology |
 | --- | --- |
-| Language | Python 3.11 |
+| Language | Python 3.14 |
 | UI and deployment | Streamlit Community Cloud |
 | Generation model | `Qwen/Qwen2.5-0.5B-Instruct` |
 | Embedding model | `sentence-transformers/all-MiniLM-L6-v2` |
@@ -109,7 +109,7 @@ AI-Based-Chatbot-for-Student-Services/
 
 ### Prerequisites
 
-- Python 3.11
+- Python 3.14
 - Internet access on the first run so Hugging Face can download the model files
 
 ### Installation
@@ -162,7 +162,7 @@ Larger Qwen variants require more RAM and CPU time and are not recommended for S
 
 The currently deployed application is available at:
 
-**https://es1307-ai-based-chatbot-for-student-services-app-u8xe19.streamlit.app/**
+**https://es1307-ai-based-chatbot-for-student-services-app-s4xslw.streamlit.app/**
 
 ## Performance diagnostics
 
