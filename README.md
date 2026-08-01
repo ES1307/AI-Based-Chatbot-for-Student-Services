@@ -1,7 +1,7 @@
 # 🎓 CampusGuide — AI-Based Chatbot for Student Services
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-success?style=for-the-badge)](https://es1307-ai-based-chatbot-for-student-services-app-s4xslw.streamlit.app/)
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Community%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
 ![RAG](https://img.shields.io/badge/RAG-Source--grounded-2E8B57?style=for-the-badge)
 
@@ -9,7 +9,9 @@
 
 CampusGuide is a document-grounded Retrieval-Augmented Generation (RAG) application for student-support information. Students can upload university PDFs or text documents, ask a question in natural language, and inspect the exact passages used to answer it.
 
-**[Open the live Streamlit application](https://es1307-ai-based-chatbot-for-student-services-app-u8xe19.streamlit.app/)**
+The currently deployed application is available at:
+
+**https://es1307-ai-based-chatbot-for-student-services-app-s4xslw.streamlit.app/**
 
 ## Features
 
@@ -160,9 +162,6 @@ Larger Qwen variants require more RAM and CPU time and are not recommended for S
 4. Deploy. Community Cloud uses `runtime.txt` and `requirements.txt` automatically.
 5. The first model-backed question after a cold restart takes longer because Qwen must load; later searches reuse the cached model within that app process.
 
-The currently deployed application is available at:
-
-**https://es1307-ai-based-chatbot-for-student-services-app-s4xslw.streamlit.app/**
 
 ## Performance diagnostics
 
