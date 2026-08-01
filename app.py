@@ -1,7 +1,9 @@
 """CampusGuide - a document-grounded student support chatbot."""
 from __future__ import annotations
 
+import hashlib
 import tempfile
+import time
 from pathlib import Path
 
 import streamlit as st
@@ -295,22 +297,39 @@ def apply_styles() -> None:
     )
 
 
-@st.cache_resource(show_spinner=False)
-def build_engine(file_signatures: tuple[tuple[str, int], ...]) -> RAGEngine:
-    paths = [Path(name) for name, _ in file_signatures]
-    return RAGEngine(load_documents(paths))
+apply_styles()
+PAGE_RENDER_STARTED = time.perf_counter()
 
 
-def save_uploads(files: list[st.runtime.uploaded_file_manager.UploadedFile]) -> list[Path]:
-    """Save uploads outside OneDrive, which can block app-created folders."""
+@st.cache_resource(show_spinner=False, max_entries=2)
+def build_engine(file_signatures: tuple[tuple[str, int, int], ...]) -> RAGEngine:
+    """Build an index once per unique document set and share it across reruns."""
+    paths = [Path(name) for name, _, _ in file_signatures]
+    chunks, index_metrics = load_documents(paths)
+    return RAGEngine(chunks, index_metrics)
+
+
+def save_uploads(files: list) -> list[Path]:
+    """Persist each upload once per browser session, instead of on every rerun."""
+    metadata = tuple((uploaded.name, int(uploaded.size)) for uploaded in files)
+    saved_paths = [Path(item) for item in st.session_state.get("uploaded_document_paths", [])]
+    if metadata == st.session_state.get("uploaded_document_metadata") and all(path.exists() for path in saved_paths):
+        return saved_paths
+
     upload_dir = Path(tempfile.gettempdir()) / "campusguide_uploads"
     upload_dir.mkdir(exist_ok=True)
-    saved: list[Path] = []
+    saved_paths = []
     for uploaded in files:
-        target = upload_dir / uploaded.name
-        target.write_bytes(uploaded.getvalue())
-        saved.append(target)
-    return saved
+        data = uploaded.getvalue()
+        digest = hashlib.sha256(data).hexdigest()[:16]
+        safe_name = Path(uploaded.name).name
+        target = upload_dir / f"{digest}_{safe_name}"
+        if not target.exists():
+            target.write_bytes(data)
+        saved_paths.append(target)
+    st.session_state.uploaded_document_metadata = metadata
+    st.session_state.uploaded_document_paths = [str(path) for path in saved_paths]
+    return saved_paths
 
 
 def render_sources(sources: list[SourceChunk]) -> None:
@@ -323,7 +342,47 @@ def render_sources(sources: list[SourceChunk]) -> None:
             st.write(source.text)
 
 
-apply_styles()
+def render_performance(result, index_metrics) -> None:
+    """Optional operational data; it has no impact unless the toggle is enabled."""
+    with st.expander("Performance diagnostics", expanded=False):
+        st.caption("Measured on this Streamlit process. CPU time is process CPU time; RSS is available on Linux/Community Cloud.")
+        timings = dict(index_metrics.timings) if index_metrics else {}
+        timings.update(result.metrics.timings)
+        timings["page_render_so_far"] = round(time.perf_counter() - PAGE_RENDER_STARTED, 4)
+        if timings:
+            st.dataframe(
+                [{"Stage": name.replace("_", " ").title(), "Seconds": value} for name, value in timings.items()],
+                hide_index=True,
+                use_container_width=True,
+            )
+        values = dict(index_metrics.values) if index_metrics else {}
+        values.update(result.metrics.values)
+        if values:
+            st.json(values, expanded=False)
+
+
+def render_response(result) -> None:
+    """Render the response once and record the server-side rendering cost."""
+    started = time.perf_counter()
+    st.markdown("<p class='section-title'>Response</p>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(result.answer)
+        if not result.used_generator:
+            st.markdown("**Suggested next step**")
+            st.write(result.next_step)
+
+    if not result.is_grounded:
+        st.warning("No matching evidence was found, so CampusGuide did not answer from general knowledge.")
+    elif result.used_generator:
+        st.caption("Written from the retrieved passages and checked against the source evidence.")
+    else:
+        st.caption("This response was assembled directly from the highest-ranked source passages.")
+
+    if result.sources:
+        render_sources(result.sources)
+    result.metrics.record("response_rendering", time.perf_counter() - started)
+    result.metrics.timings["streamlit_script_run"] = round(time.perf_counter() - PAGE_RENDER_STARTED, 4)
+
 
 if "question_input" not in st.session_state:
     st.session_state.question_input = ""
@@ -352,6 +411,7 @@ with st.sidebar:
     st.caption("Document-grounded student support")
     st.divider()
     use_sample = st.toggle("Use sample university handbook", value=True)
+    debug_enabled = st.toggle("Performance diagnostics", value=False, help="Show timings and resource data after a search.")
 
 with st.expander("Documents", expanded=False):
     uploaded_files = st.file_uploader(
@@ -381,20 +441,10 @@ if not document_paths:
     st.info("Add at least one PDF or text document to start asking questions.")
     st.stop()
 
-signatures = tuple((str(path), path.stat().st_mtime_ns) for path in document_paths)
-try:
-    with st.spinner("Preparing the document knowledge base..."):
-        engine = build_engine(signatures)
-except Exception as exc:
-    st.error(f"The document index could not be created: {exc}")
-    st.stop()
-
-with st.sidebar:
-    st.divider()
-    st.caption("● Ready to search")
-    metric_one, metric_two = st.columns(2)
-    metric_one.metric("Documents", len(document_paths))
-    metric_two.metric("Chunks", len(engine.chunks))
+document_signature = tuple((str(path), path.stat().st_mtime_ns, path.stat().st_size) for path in document_paths)
+if st.session_state.get("last_result_signature") != document_signature:
+    st.session_state.pop("last_result", None)
+    st.session_state.pop("last_index_metrics", None)
 
 st.markdown("<p class='section-title'>Ask a question</p>", unsafe_allow_html=True)
 st.markdown("<p class='muted'>Use the same wording you would use with a student-support advisor.</p>", unsafe_allow_html=True)
@@ -409,32 +459,38 @@ with st.form("question_form", clear_on_submit=False):
     submitted = st.form_submit_button("Search the handbook", type="primary", use_container_width=True)
 
 with st.expander("Try an example"):
-    examples = [
+    for example in [
         "What support is available for mental wellbeing?",
         "How do I request financial assistance?",
         "What is the attendance requirement?",
-    ]
-    for example in examples:
+    ]:
         st.button(example, key=example, use_container_width=True, on_click=set_question, args=(example,))
 
 if submitted and st.session_state.question_input.strip():
     question = st.session_state.question_input.strip()
-    with st.spinner("Searching the most relevant passages..."):
-        result = engine.answer(question)
+    try:
+        with st.spinner("Preparing evidence and writing a grounded response..."):
+            engine = build_engine(document_signature)
+            result = engine.answer(question)
+        st.session_state.last_result = result
+        st.session_state.last_result_signature = document_signature
+        st.session_state.last_index_metrics = engine.index_metrics
+    except Exception as exc:
+        st.error(f"The document index could not be created: {exc}")
 
-    st.markdown("<p class='section-title'>Response</p>", unsafe_allow_html=True)
-    with st.container(border=True):
-        st.markdown(result.answer)
-        if not result.used_generator:
-            st.markdown("**Suggested next step**")
-            st.write(result.next_step)
+result = st.session_state.get("last_result")
+if result and st.session_state.get("last_result_signature") == document_signature:
+    render_response(result)
+    if debug_enabled:
+        render_performance(result, st.session_state.get("last_index_metrics"))
 
-    if not result.is_grounded:
-        st.warning("No matching evidence was found, so CampusGuide did not answer from general knowledge.")
-    elif result.used_generator:
-        st.caption("Written from the retrieved passages and checked against the source evidence.")
+with st.sidebar:
+    st.divider()
+    if result and st.session_state.get("last_result_signature") == document_signature:
+        st.caption("● Knowledge base indexed")
+        metric_one, metric_two = st.columns(2)
+        metric_one.metric("Documents", len(document_paths))
+        metric_two.metric("Chunks", st.session_state.get("last_index_metrics").values.get("chunk_count", "—"))
     else:
-        st.caption("This response was assembled directly from the highest-ranked source passages.")
-
-    if result.sources:
-        render_sources(result.sources)
+        st.caption("● Ready to index on first search")
+        st.metric("Documents", len(document_paths))
